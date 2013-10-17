@@ -1,16 +1,97 @@
 <?php
-
-$json = file_get_contents("http://127.0.0.1/Plain-Practical-PHP-Page-Parser/demo/parsed_content.json.php");
-$json_a = json_decode($json,true);
-$title = $json_a["query"]["pages"]["1"]["title"];
-$content = $json_a["query"]["pages"]["1"]["revisions"]["0"]["*"];
+require('stickyClass.php');
+require('faqClass.php');
 
 require_once('Michelf/Markdown.php');
 use \Michelf\Markdown;
-$my_html = Markdown::defaultTransform($content);
 
-echo "<h1>$title</h1>";
-echo "\n<hr />\n";
-echo "$my_html";
+class Parser{
+    function __construct(){
+        
+        require('config.php');
+        
+        $json = file_get_contents($url . "?" . $options . "&titles=" . $title);
+        
+        $json_a = json_decode($json,true);
+        //$title = $json_a["query"]["pages"][ $pageId ]["title"];
+        $content = $json_a["query"]["pages"][ $pageId ]["revisions"][ $revision ]["*"];
+        
+        //sanitize
+        preg_match("'<ContentIndex>(.*?)</ContentIndex>'si", $content, $sanitized_content);
+        //make the blob
+        $this->blob = $sanitized_content[1];
+        
+        //get the menu
+        preg_match("'<MENU>(.*?)</MENU>'si", $sanitized_content[1], $menu);
+        //render the menu
+        if($menu){
+            preg_match_all("'<item>(.*?)</item>'si", $menu[1], $menuItems);
+            foreach($menuItems[1] as $item){
+                $rendered_item = Markdown::defaultTransform($item);
+                $this->menu .= $rendered_item;
+            }
+        }
+        
+        //get the stickies
+        preg_match_all("'<STICKY>(.*?)</STICKY>'si", $sanitized_content[1], $stickies);  
+        //make sticky objects
+        if($stickies[1]){
+            foreach($stickies[1] as $stickyItem){
+                preg_match("'<title>(.*?)</title>'si", $stickyItem, $title);
+                preg_match("'<date>(.*?)</date>'si", $stickyItem, $date);
+                preg_match("'<author>(.*?)</author>'si", $stickyItem, $author);
+                preg_match("'<text>(.*?)</text>'si", $stickyItem, $text);
+                $rendered_text = Markdown::defaultTransform($text[1]); 
+                
+                new Sticky($title[1], $date[1], $author[1], $rendered_text);
+            }
+        }
+        
+        //get the welcome message
+        preg_match("'<WELCOME>(.*?)</WELCOME>'si", $sanitized_content[1], $welcome);
+        //render the welcome message
+        if($welcome[1]){
+            preg_match("'<title>(.*?)</title>'si", $welcome[1], $title);
+            preg_match("'<text>(.*?)</text>'si", $welcome[1], $text);
+            $rendered_text = Markdown::defaultTransform($text[1]); 
+            
+            $this->welcome->title = $title[1];
+            $this->welcome->text = $rendered_text;
+            
+        }
+        
+        //get the FAQs
+        preg_match_all("'<FAQ>(.*?)</FAQ>'si", $sanitized_content[1], $faqs);  
+        //make FAQ objects
+        if($faqs[1]){
+            foreach($faqs[1] as $faqItem){
+                preg_match("'<title>(.*?)</title>'si", $faqItem, $title);
+                preg_match("'<text>(.*?)</text>'si", $faqItem, $text);
+                $rendered_text = Markdown::defaultTransform($text[1]); 
+                
+                new Faq($title[1], $rendered_text);
+            }
+        }
+    }
+    
+    public function getBlob(){
+        return $this->blob;
+    }
+    public function getStickies(){
+        return Sticky::$instances;
+    }
+    public function getWelcome(){
+        return $this->welcome;
+    }
+    public function getFaqs(){
+        return Faq::$instances;
+    }
+}
 
+//$homePageParser = new Parser;
+
+//echo $homePageParser->getBlob();
+//print_r( $homePageParser->getStickies());
+//print_r($homePageParser->getWelcome());
+//print_r( $homePageParser->getFaqs());
 ?>
