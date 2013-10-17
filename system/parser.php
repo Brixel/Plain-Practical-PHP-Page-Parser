@@ -1,6 +1,8 @@
 <?php
+
 require('stickyClass.php');
 require('faqClass.php');
+
 
 require_once('Michelf/Markdown.php');
 use \Michelf\Markdown;
@@ -8,8 +10,8 @@ use \Michelf\Markdown;
 class Parser{
     function __construct(){
         
-        require('config.php');
-        
+        require('system-config.php');
+   
         $json = file_get_contents($url . "?" . $options . "&titles=" . $title);
         
         $json_a = json_decode($json,true);
@@ -27,8 +29,9 @@ class Parser{
         if($menu){
             preg_match_all("'<item>(.*?)</item>'si", $menu[1], $menuItems);
             foreach($menuItems[1] as $item){
-                $rendered_item = Markdown::defaultTransform($item);
-                $this->menu .= $rendered_item;
+                $rendered_item_with_p = Markdown::defaultTransform($item);
+                preg_match("'<p>(.*?)</p>'si", $rendered_item_with_p, $rendered_item);
+                $this->menu .= $rendered_item[1];
             }
         }
         
@@ -67,15 +70,18 @@ class Parser{
             foreach($faqs[1] as $faqItem){
                 preg_match("'<title>(.*?)</title>'si", $faqItem, $title);
                 preg_match("'<text>(.*?)</text>'si", $faqItem, $text);
-                $rendered_text = Markdown::defaultTransform($text[1]); 
-                
-                new Faq($title[1], $rendered_text);
+                $rendered_text_with_p = Markdown::defaultTransform($text[1]); 
+                preg_match("'<p>(.*?)</p>'si", $rendered_text_with_p, $rendered_text);
+                new Faq($title[1], $rendered_text[1]);
             }
         }
     }
     
     public function getBlob(){
         return $this->blob;
+    }
+    public function getMenu(){
+        return $this->menu;
     }
     public function getStickies(){
         return Sticky::$instances;
