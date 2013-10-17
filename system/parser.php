@@ -12,7 +12,7 @@ class Parser{
         
         require('system-config.php');
    
-        $json = file_get_contents($url . "?" . $options . "&titles=" . $title);
+        $json = file_get_contents("content/" . $pageId . ".json");
         
         $json_a = json_decode($json,true);
         //$title = $json_a["query"]["pages"][ $pageId ]["title"];
